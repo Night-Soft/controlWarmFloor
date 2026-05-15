@@ -5,44 +5,44 @@
 #include "pins.h"
 #include "pump.h"
 #include "rtc/RealRtc.h"  // ds1307z
+#include "linkAttiny.h"
+#include "wifi/web.h"
+#include "power.h"
+#include "TimeRange.h"
 
-extern RealRtc realTime;
-extern Pump pump;
-
-enum PUMP_ACTION : uint8_t {
-    pumpTurnOn = 1,
-    pumpTurnOff = 2,
-    pumpTurnOnNSec = 3,
-    pumpNoAction = 4
+enum class U_ACTIONS : uint8_t {
+  pumpNoAction = 0,
+  pumpTurnOn = 1,
+  pumpTurnOnNSec = 2,
+  pumpTurnOff = 3,
+  webOn = 4,
+  webOff = 5
 };
 
-enum BTN_MANUAL_ACTION : uint8_t {
-  btnNoAction,
-  btnIsPressed,
-  btnIsPressedTwice
+struct NextAction {
+  U_ACTIONS action;
+  uint16_t operatingTime; // seconds
+  NextAction()
+    : action(U_ACTIONS::pumpNoAction), operatingTime(0) {}
 };
-
-enum CHECK_FROM : uint8_t {fromInterrupt, fromSetup};
-
-struct PUMP_ACTION_TIME {
-  PUMP_ACTION action = pumpNoAction;
-  uint16_t operatingTime = 0; // seconds
-  PUMP_ACTION_TIME()
-    : action(pumpNoAction), operatingTime(0) {}
-};
-
-void setupInterrupt();
-
-IRAM_ATTR void changeStateHeating();
-IRAM_ATTR void changeBtnManual();
 
 uint16_t getSumSeconds(CurrentTime& time);
-PUMP_ACTION getPumpActionByBtnManual(PINS_STATE& state);
-PUMP_ACTION_TIME getPumpActionByTime(PINS_STATE& state, CHECK_FROM checkFrom);
 
-void checkInerrupts();
-void triggerActionsByPins();
-void executeAction(PUMP_ACTION_TIME& pumpActionTime);
-void checkCanSleep();
+NextAction getBtnAction(STATE_BTN state);
+NextAction getHeatingAction(STATE_HEATING state);
+
+void onHeatingAndBtnMsg(MAIN_STATE &prev);
+void onHeatingMsg(MAIN_STATE & prev);
+void onBtnMsg(MAIN_STATE & prev);
+void onTimeAction();
+void executeAction(NextAction action);
+
+void checkActionByTime(uint8 time);
+void stopActionByTime();
+
+template <typename... Args>
+void log(Args ...args) {
+ // Serial.print(args,)
+}
 
 #endif

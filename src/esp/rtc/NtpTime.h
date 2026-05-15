@@ -5,10 +5,12 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 
+#include "../wifi/wifi.h"
+
 class NtpTime {
  private:
   WiFiUDP ntpUDP;
-  bool setupWifi();
+  WiFiHolder* wifiHolder = nullptr;
 
  public:
   NTPClient* time = nullptr; 

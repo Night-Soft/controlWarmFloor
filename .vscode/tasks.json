@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build ESP8266",
+      "type": "shell",
+      "command": "pio run -e esp8266",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Upload ESP8266",
+      "type": "shell",
+      "command": "pio run -e esp8266 --target upload",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Build ATtiny45",
+      "type": "shell",
+      "command": "pio run -e attiny45",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Upload ATtiny45",
+      "type": "shell",
+      "command": "pio run -e attiny45 --target upload",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Build ATtiny13",
+      "type": "shell",
+      "command": "pio run -e attiny13",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Upload ATtiny13",
+      "type": "shell",
+      "command": "pio run -e attiny13 --target upload",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Clean All",
+      "type": "shell",
+      "command": "pio run --target clean",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ]
+}

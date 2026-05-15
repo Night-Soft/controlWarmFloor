@@ -6,20 +6,19 @@
 using PINS = enum : uint8_t {
     P_SCA = 5,            // d1
     P_SDA = 4,            // d2
-    P_BTN_MANUAL = 13,    // d7 - PB3
-    P_ESP_STATE = 14,     // d5 - PB1
-    P_STATE_HEATING = 12, // d6 - PB2
-    P_TOGGLE_PUMP = 15    // d8 // need test
+    P_ESP_STATE = 0,     // d3 - PB1
+    P_WIRE_ATTINY = 14,   // d5 - PB2, 
+    
+    P_TOGGLE_PUMP = 12,    // d6 - bc547 in signal relay 
+    P_TOGGLE_RELAY = 13,  // d7, gnd -  power relay
 };
 
 struct PINS_STATE {
-    byte BTN_MANUAL;    // d7 - PB3
     byte ESP_STATE;     // d5 - PB1
-    byte STATE_HEATING; // d6 - PB2
-    byte TOGGLE_PUMP;   // d8 // need test
+    byte TOGGLE_PUMP;   // d8, need test
 };
 
-void initPins() ;
+void setupPins() ;
 PINS_STATE getPinsState();
 
 #endif

@@ -8,15 +8,20 @@
 #include "NtpTime.h"
 
 struct CurrentTime {
-  short hour, minutes, seconds;
-  uint32 unixTime;
+  uint32 sumSeconds;
+  uint8 hour, minutes, seconds;
+  static CurrentTime get(const RtcDateTime &rtcdateTime);
+  static CurrentTime get(uint32 seconds);
 };
 
 class RealRtc {
   private:
     bool needUpdateTime();
-    uint32 getLastSetNtpTime();
-    void updateLastSetNtpTime(uint32 time);
+    uint64 getLastSetNtpTime();
+    void updateLastSetNtpTime(uint64 time);
+    
+    unsigned long computedTime = 0;
+    unsigned long lastMillis = 0;
 
  public:
   RealRtc();
@@ -30,6 +35,8 @@ class RealRtc {
   bool setTimeFromCompile();
   RtcDateTime getTime();
   CurrentTime getCurrentTime();
+  CurrentTime getComputedTime();
+  void updateComputedTime();
   void printTime(RtcDateTime *dateTime = nullptr);
 
   bool setTimeFromNtp();
@@ -37,4 +44,5 @@ class RealRtc {
   void deleteNtpTime();
 };
 
+extern RealRtc realTime;
 #endif

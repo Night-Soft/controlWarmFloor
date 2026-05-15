@@ -145,10 +145,6 @@ Tasks::Tasks(uint8 maxRegural, uint8 maxLambda)
 Tasks::~Tasks() { free(beginTasks); }
 
 void Tasks::add(Task& task) {
-  // if (isFreeMemForTask(sizeof(Task)) == false && needDefragmentaton()) {
-  //   defragmentation();
-  // }
-
   memcpy(endTasks, &task, sizeof(Task));  // dest, source, len
   ids.add(task.id, endTasks, TASK_TYPE::regural);
 
@@ -157,10 +153,10 @@ void Tasks::add(Task& task) {
   size++;
 }
 
-void Tasks::add(TaskLm& task) {
-
-  memcpy(endTasks, &task, sizeof(TaskLm));  // dest, source, len
-  ids.add(task.id, endTasks, TASK_TYPE::lambda);
+void Tasks::add(TaskLm& task) { 
+  const CallbackId id = task.id;
+  new (endTasks) TaskLm(std::move(task));
+  ids.add(id, endTasks, TASK_TYPE::lambda);
 
   sizeTasksInBytes += sizeof(TaskLm);
   endTasks+= sizeof(TaskLm);
@@ -169,6 +165,10 @@ void Tasks::add(TaskLm& task) {
 
 void Tasks::remove(CallbackId id) {
   TaskPT taskPt = this->get(id);
+  if(taskPt.type == TASK_TYPE::empty) {
+    Serial.printf("Error remove id: %u, no task\n", id);
+    return;
+  }
   remove(taskPt);
 }
 
@@ -178,7 +178,14 @@ void Tasks::remove(TaskPT& taskPt) {
     id = ((Task*)taskPt.pointer)->id;
     sizeTasksInBytes -= sizeof(Task);
   } else if (taskPt.type == TASK_TYPE::lambda) {
-    id = ((TaskLm*)taskPt.pointer)->id;
+    TaskLm &lm = *(TaskLm*)taskPt.pointer; 
+    id = lm.id;
+    if(currentId == id) {
+      Serial.printf("TaskLm id: %u, will removed when task end\n", id);
+      needRemoveCurrent = true;
+      return;
+    }
+    lm.callback.~CallbackLm();
     sizeTasksInBytes -= sizeof(TaskLm);
   } else {
     Serial.printf("Error remove taskPt, unknown type: %d\n", (int)taskPt.type);
@@ -194,7 +201,7 @@ void Tasks::removeList(TaskPT taskPt[], uint8 len) {
   }
 }
 
-bool Tasks::has(const CallbackId& id) { return this->has(id); }
+bool Tasks::has(const CallbackId& id) { return ids.has(id); }
 
 bool Tasks::has(Callback callback) {
   TaskPT taskPT = this->get(callback);
@@ -325,7 +332,7 @@ PostponedTask::~PostponedTask() {
   if(taskToErase != nullptr) free(taskToErase);
 }
 
-uint32 PostponedTask::add(uint32 timeMs, Callback callback, bool once) {
+uint8 PostponedTask::add(uint32 timeMs, Callback callback, bool once) {
   if (tasks.needDefragmentaton(sizeof(Task))) {
     tasks.defragmentation();
 
@@ -353,7 +360,7 @@ uint32 PostponedTask::add(uint32 timeMs, Callback callback, bool once) {
   return (uint32)id;
 }
 
-uint32 PostponedTask::add(uint32 timeMs, CallbackLm callback, bool once) {
+uint8 PostponedTask::add(uint32 timeMs, CallbackLm callback, bool once) {
   if (tasks.needDefragmentaton(sizeof(TaskLm))) {
     tasks.defragmentation();
 
@@ -368,12 +375,26 @@ uint32 PostponedTask::add(uint32 timeMs, CallbackLm callback, bool once) {
                  .id = id,
                  .delay = timeMs,
                  .timer = (uint32)millis(),
-                 .callback = callback};
+                 .callback = std::move(callback)};
 
   Serial.printf("Add lambda -> id: %d, delay: %d\n", task.id, task.delay);
 
   tasks.add(task);
   return id;
+}
+
+uint8 PostponedTask::setTimeout(uint32 timeMs, Callback callback) {
+  return add(timeMs, callback, true);
+}
+uint8 PostponedTask::setTimeout(uint32 timeMs, CallbackLm callback) {
+  return add(timeMs, callback, true);
+}
+
+uint8 PostponedTask::setInterval(uint32 timeMs, Callback callback) {
+  return add(timeMs, callback, false);
+}
+uint8 PostponedTask::setInterval(uint32 timeMs, CallbackLm callback) {
+  return add(timeMs, callback, false);
 }
 
 bool PostponedTask::remove(Callback callback) {
@@ -388,20 +409,29 @@ bool PostponedTask::remove(CallbackId id) {
   return true;
 }
 
+bool PostponedTask::clear(CallbackId *id) {
+  if(!has(*id)) return false;
+
+  tasks.remove(*id);
+  *id = 0;
+  return true;
+}
+
 bool PostponedTask::has(Callback callback) { return tasks.has(callback); }
 
-bool PostponedTask::has(CallbackId id) { return tasks.has(id); }
+bool PostponedTask::has(CallbackId id) { return tasks.ids.has(id); }
 
 void PostponedTask::tick() { 
   if (this->size == 0) return;
 
   static uint32 timer = 0;
-  uint32 now = millis();
+  lastTick = millis();
+  uint32 &now = lastTick;
 
   if(now - timer < this->minTickTime) return;
   timer = now;
 
-  numToErase = 0; // todo remove inside
+  uint8 numToErase = 0; 
 
   //uint64 prev = micros64();
 
@@ -415,7 +445,7 @@ void PostponedTask::tick() {
       //Serial.println("In TASK_TYPE::regural");
 
       regural = (Task*)taskPt.pointer;
-      if (now - regural->timer >= regural->delay) {
+      if (now > regural->timer && now - regural->timer >= regural->delay) {
         if (regural->once == true) taskToErase[numToErase++] = taskPt;
         regural->timer = now;
         regural->callback();
@@ -424,12 +454,20 @@ void PostponedTask::tick() {
     }
 
     lambda = (TaskLm*)taskPt.pointer;
-    if (now - lambda->timer >= lambda->delay) {
+    if (now > lambda->timer &&now - lambda->timer >= lambda->delay) {
      // Serial.println("In TASK_TYPE::lambda");
 
-      if (lambda->once == true) taskToErase[numToErase++] = taskPt;
-      lambda->timer = now;
-      lambda->callback(lambda->id);
+     tasks.currentId = lambda->id;
+     
+     lambda->timer = now;
+     lambda->callback(lambda->id);
+     tasks.currentId = 0;
+
+     if (lambda->once == true || tasks.needRemoveCurrent) {
+      taskToErase[numToErase++] = taskPt;
+      tasks.needRemoveCurrent = false;
+     }
+
     }
   }
 
@@ -449,6 +487,20 @@ bool PostponedTask::updateNumTasks(uint8 maxRegural, uint8 maxLambda) {
   TaskPT* newPtr = (TaskPT*)realloc(taskToErase,(maxRegural + maxLambda) * sizeof(TaskPT));
   if(newPtr == nullptr) return false;
   return true;
+}
+
+void PostponedTask::resetTick(CallbackId id) {
+  TaskPT taskPt = tasks.get(id);
+  if (taskPt.pointer == nullptr) return;
+  
+  if (taskPt.type == TASK_TYPE::lambda) {
+    TaskLm& task = *((TaskLm*)taskPt.pointer);
+    task.timer = (uint32)millis();
+  }
+  if (taskPt.type == TASK_TYPE::regural) {
+    Task& task = *((Task*)taskPt.pointer);
+    task.timer = (uint32)millis();
+  }
 }
 
 void PostponedTask::removeList(Callbacks& list, uint8 len) {
@@ -504,16 +556,16 @@ void PostponedTask::updateMinTickTime() {  // setMinTickTime
   minTickTime = minTime;
 }
 
-CallbackId& PostponedTask::getTaskId(TASK_TYPE type) {
+CallbackId PostponedTask::getTaskId(TASK_TYPE type) {
   if (type == TASK_TYPE::regural) {
-    if (taskId == 127) taskId = 26;
+    if (taskId == 127) taskId = 0;
     return ++taskId;
   }
   if (type == TASK_TYPE::lambda) {
-    if (taskLmId == 255) taskLmId = 154;
+    if (taskLmId == 255) taskLmId = 127;
     return ++taskLmId;
   }
-  return numToErase; // todo
+  return 0; // todo
 }
 
 PostponedTask postponedTask;

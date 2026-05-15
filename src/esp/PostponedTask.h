@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 #include <functional>
-#include <map>
+#include <new>
 
 #define MAX_REGURAL_TASK 32
 #define MAX_LAMBDA_TASK 16
@@ -12,7 +12,7 @@
 // Callback for usual function
 using Callback = void (*)();
 // Callback for lambda function
-using CallbackLm = std::function<void(uint32)>;
+using CallbackLm = std::function<void(uint8)>;
 
 using Callbacks = Callback*;
 using CallbacksIds = uint8*;
@@ -59,7 +59,7 @@ class Ids {
   bool updateNumTasks(uint8 maxRegural, uint8 maxLambda);
   CallbacksIds ids;
   uint8 size = 0; // num of items
-  uint8 itemSize = 0; // size -> (id + type + ptr) in bytes 
+  uint8 itemSize = 0; // size -> (id + TASK_TYPE + ptr) in bytes 
 
  private:
   void shiftMem(uint8* ptr);
@@ -127,6 +127,8 @@ class Tasks {
   TaskIterator begin();
   TaskIterator end();
 
+  bool needRemoveCurrent = false;
+  CallbackId currentId = 0;
   uint8* beginTasks = nullptr;
   uint8* endTasks = nullptr;
   uint8 size = 0; // num of items
@@ -141,19 +143,27 @@ class PostponedTask {
   PostponedTask(uint8 maxRegural, uint8 maxLambda);
   ~PostponedTask();
 
-  uint32 add(uint32 timeMs, Callback callback, bool once = true);
-  uint32 add(uint32 timeMs, CallbackLm callback, bool once = true);
+  uint8 setTimeout(uint32 timeMs, Callback callback);
+  uint8 setTimeout(uint32 timeMs, CallbackLm callback);
+
+  uint8 setInterval(uint32 timeMs, Callback callback);
+  uint8 setInterval(uint32 timeMs, CallbackLm callback);
+
+  bool clear(CallbackId *id);
   bool remove(CallbackId id);
   bool remove(Callback callback);
   bool has(CallbackId id);
   bool has(Callback callback);
   bool updateNumTasks(uint8 maxRegural, uint8 maxLambda);
+  void resetTick(CallbackId id);
   void tick();
 
   Tasks tasks;
   uint8 &size;
 
  private:
+  uint8 add(uint32 timeMs, Callback callback, bool once = true);
+  uint8 add(uint32 timeMs, CallbackLm callback, bool once = true);
   void removeList(Callbacks& list, uint8 len);
   void removeList(CallbacksIds& list, uint8 len);
   void setMinTickTime(const uint32& delay, const uint32& timer,
@@ -163,13 +173,13 @@ class PostponedTask {
   Task* regural;
   TaskLm* lambda;
 
-  CallbackId& getTaskId(TASK_TYPE type);
-  CallbackId taskId = 26;
-  CallbackId taskLmId = 154;
+  CallbackId getTaskId(TASK_TYPE type);
+  CallbackId taskId = 0;
+  CallbackId taskLmId = 127;
 
-  uint8 numToErase = 0;
   TaskPT* taskToErase = nullptr;
 
+  uint32 lastTick = 0;
   uint32 minTickTime = 1000;
 };
 

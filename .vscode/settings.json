@@ -1,0 +1,71 @@
+{
+  "C_Cpp.errorSquiggles": "enabled",
+  "platformio-ide.toolbar": [
+    {
+      "text": "ATtiny45 $(check)",
+      "tooltip": "Build ATtiny45",
+      "commands": [
+        {
+          "id": "workbench.action.files.saveAll"
+        },
+        {
+          "id": "platformio-ide.runPIOCoreCommand",
+          "args": "pio run -e attiny45"
+        }
+      ]
+    },
+    {
+      "text": "ATtiny45 $(arrow-right)",
+      "tooltip": "Upload ATtiny45",
+      "commands": [
+        {
+          "id": "workbench.action.files.saveAll"
+        },
+        {
+          "id": "platformio-ide.runPIOCoreCommand",
+          "args": "pio run -e attiny45 --target upload"
+        }
+      ]
+    },
+    {
+      "text": "ESP $(check)",
+      "tooltip": "Build ESP8266",
+      "commands": [
+        {
+          "id": "workbench.action.files.saveAll"
+        },
+        {
+          "id": "platformio-ide.runPIOCoreCommand",
+          "args": "pio run -e nodemcuv2"
+        }
+      ]
+    },
+    {
+      "text": "ESP $(arrow-right)",
+      "tooltip": "Build upload and monitor ESP8266",
+      "commands": [
+        {
+          "id": "workbench.action.files.saveAll"
+        },
+        {
+          "id": "platformio-ide.runPIOCoreCommand",
+          "args": "pio run -e nodemcuv2 --target upload"
+        },
+        {
+          "id": "platformio-ide.runPIOCoreCommand",
+          "args": "pio device monitor -e nodemcuv2"
+        }
+      ]
+    },
+    {
+      "text": "$(plug)",
+      "tooltip": "PlatformIO: Serial Monitor",
+      "commands": "platformio-ide.serialMonitor"
+    },
+    {
+      "text": "$(terminal)",
+      "tooltip": "PlatformIO: New Terminal",
+      "commands": "platformio-ide.newTerminal"
+    }
+  ]
+}

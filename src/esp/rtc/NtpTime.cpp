@@ -1,53 +1,28 @@
 #include "NtpTime.h"
-#include "secret.h"
 
 NtpTime::NtpTime() { init(); }
 
 NtpTime::~NtpTime() {
     delete time;
     time = nullptr;
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
+    if (this->wifiHolder != nullptr) {
+      delete this->wifiHolder;
+      this->wifiHolder = nullptr;
+    }
 }
 
 bool NtpTime::init() {
-  bool isConnected = setupWifi();
+  wifiHolder = new WiFiHolder();
+  bool isConnected = wifiHolder->turnOn();
   if (isConnected == false) {
         Serial.println("NtpTime: No WiFi, call '.init later.'");
+        delete this->wifiHolder;
         return false;
   }
-
-  time = new NTPClient(ntpUDP);
-  time->begin();
-  time->setTimeOffset(2 * 3600);  // UTC + 2, Починаючи з 29 березня 2026 буде UTC +3 
-
+// todo auto offset
+  time = new NTPClient(ntpUDP, 3 * 3600); // UTC + 2, Починаючи з 29 березня 2026 буде UTC +3
+  time->begin();  
   return true;
-}
-
-bool NtpTime::setupWifi() {
-  WiFi.begin(ssid, password);
-  Serial.print("\nConnecting");
-
-  bool isConnected = (WiFi.status() == WL_CONNECTED);
-  int current = millis();
-  while (isConnected == false) {
-    delay(300);
-    isConnected = (WiFi.status() == WL_CONNECTED);
-    Serial.print(".");
-    if (millis() - current > 5000) {
-      isConnected = false;
-      break;
-    }
-  }
-
-  this->isWiFiConnected = isConnected;
-  if (isConnected) {
-    Serial.printf("\n%s connected!\n", ssid);
-  } else {
-    Serial.printf("\nFailed connect to %s!", ssid);
-  }
-
-  return isConnected;
 }
 
 void NtpTime::print() { Serial.println(time->getFormattedTime()); }

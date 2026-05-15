@@ -5,19 +5,27 @@
 
 #include "pins.h"
 #include "rtc/RealRtc.h"
+#include "display.h"
+
+enum class PUMP_STATE : uint8 {off, onAWhile, onViaBtn};
 
 class Pump {
-  uint32 secondsAWhile =0;
+  uint32 secondsAWhile = 0;
   unsigned long endOfWorkTime = 0;  // millis
-  bool isTick = false;
+  unsigned long startTime = 0;  // millis
+  bool canTick = false;
+  PUMP_STATE state = PUMP_STATE::off;
 
  public:
   bool isWorking();
-  void turnOn();
+  void turnOnViaBtn();
   void turnOnAWhile(uint32 seconds);
   void turnOff();
   void tick();
+  
   CurrentTime getEndTimeOfWork();
 };
+
+extern Pump pump;
 
 #endif
