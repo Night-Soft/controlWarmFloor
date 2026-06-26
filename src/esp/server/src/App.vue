@@ -147,6 +147,43 @@ function toggleRelay() {
     })
 }
 
+function twoDigits(time) {
+  return time > 10 ? "" + time : "0" + time;
+}
+
+const curDate = ref("");
+setInterval(() => {
+  const date = new Date();
+  let timeStr = twoDigits(date.getHours()).concat(":");
+  timeStr = timeStr.concat(twoDigits(date.getMinutes())).concat(":");
+  timeStr = timeStr.concat(twoDigits(date.getSeconds()));
+  curDate.value = timeStr;
+}, 1000);
+
+const updateTime = () => {
+  const url = "/setTime?time=" + Number((Date.now() / 1000).toFixed(0));
+  fetch(url)
+    .then(response => {
+      if (!response.ok) {
+        const msg = "Failed send  setTime!"
+        showInfo(msg, true);
+        throw new Error(msg);
+      }
+
+      return response.json();
+    }).then(data => {
+      if (data.status == "ok") {
+        const msg = "Failed setTime!"
+        showInfo(msg, true);
+        return;
+      }
+
+      showInfo("RTC time updated successfully.");
+    }).catch(error => {
+      showInfo("Error parse data!", true);
+    })
+}
+
 </script>
 
 <template>
@@ -164,6 +201,10 @@ function toggleRelay() {
 
     <button @click="toggleRelay" class="add relay" :class="[isRelayOn ? 'relay-on' : 'relay-off']">
       {{ isRelayOn ? 'Turn off relay' : 'Turn on relay' }}
+    </button>
+
+    <button @click="updateTime" class="add relay relay-off">
+     Set current date: {{curDate}}
     </button>
 
     <div class="time-container">

@@ -141,8 +141,24 @@ auto onGetTime = [](AsyncWebServerRequest* request) {
   request->send(200, "application/json", message);
 };
 
+// set current time to rtc
+auto onSetTime = [](AsyncWebServerRequest* request) {
+  if (request->hasParam("time")) {
+    uint64 time = (uint64)request->getParam("time")->value().toInt();
+    Serial.printf("Time value str: %s, uint64: %llu\n",
+                  request->getParam("time")->value().c_str(), time);
+    time += 3 * 3600;
+    
+    realTime.setTimeFromUnix(time);
+    request->send(200, "application/json", "{\"status\": true}");
+    return;
+  }
+  request->send(200, "application/json", "{\"status\":\"ok\"}");
+};
+
 FDstat_t statusSaveTime = FDstat_t::FD_IDLE;
 
+// save time ranges
 auto onSetTimeRequest =
     [](AsyncWebServerRequest* request) {  // call after onBody
       if (statusSaveTime == FD_WRITE || statusSaveTime == FD_NO_DIF) {
@@ -168,22 +184,42 @@ void displayInitWebServer() {
   display.drawNow();
 }
 
+void createAP() {
+  WiFi.enableAP(true);
+  WiFi.mode(WIFI_AP);
+  Serial.print("Setting AP (Access Point)…");
+  WiFi.softAP("ESP32");
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+
+  digitalWrite(LED_BUILTIN, LOW);  // low -> led is on
+  display.toggleWiFi(true);
+  display.forceUpdade();
+}
+
 bool initWebServer() {
   displayInitWebServer();
-  wifiHolder = new WiFiHolder(); 
+  wifiHolder = new WiFiHolder();
+  bool isAP = false;
   if (!wifiHolder->turnOn()) {
-    Serial.println("Error init WebServer");
-    Modal modal = {"", "Error init Web server.", "Try again!"};
-    modal.timeShow = 5;
-    display.showModal(modal);
+    
 
-    delete wifiHolder; 
-    return false;
+    Serial.println("Error init WebServer, failed connect!");
+    createAP();
+    isAP = true;
+    // Modal modal = {"", "Error init Web server.", "Try again!"};
+    // modal.timeShow = 5;
+    // display.showModal(modal);
+
+    // delete wifiHolder;
+
+    // return false;
   }
 
   Serial.println();
   Serial.printf("\n %10s", "Connect to: ");
-  Serial.println(WiFi.localIP());
+  Serial.println(isAP ?  WiFi.softAPIP() :WiFi.localIP());
   Serial.println();
 
   if (!LittleFS.begin()) {
@@ -199,6 +235,7 @@ bool initWebServer() {
 
   server.on("/api", HTTP_GET, onApi);
   server.on("/getTime", HTTP_GET, onGetTime);
+  server.on("/setTime", HTTP_GET, onSetTime);
   server.on("/toggleRelay", HTTP_GET, onToggleRelay);
   server.on("/saveTime", HTTP_POST, onSetTimeRequest,
             NULL,  
@@ -211,8 +248,12 @@ bool initWebServer() {
 
   Modal modal;
   sprintf(modal.title, "Setup time!");
-  sprintf(modal.str1, "Connect to:");
-  sprintf(modal.str2, WiFi.localIP().toString().c_str());
+  sprintf(modal.str1, isAP ? "Connect to AP: ESP32" : "Go to:");
+
+  if (isAP) strcpy(modal.str2, "Go to: ");
+  sprintf(isAP ? &modal.str2[7] : modal.str2,
+          isAP ? WiFi.softAPIP().toString().c_str()
+               : WiFi.localIP().toString().c_str());
   display.showModal(modal);
 
   postponedTask.setInterval(30 * 1000, endServerIfNoActivity);  
