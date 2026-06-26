@@ -12,9 +12,8 @@
 extern Pump pump;
 
 bool canSleep();
-//void addSleepTick();
-void trySleep(uint32 timeSec = 0);
-void breakSleep();
-void addTaskCheckCanSleep();
+void resetManageCycleSleep();
+void addTaskManageSleep();
 void resetSleepTick();
+
 #endif

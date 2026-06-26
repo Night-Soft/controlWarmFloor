@@ -122,6 +122,36 @@ void checkActionByTime(uint8 time) {
   });
 }
 
+bool actionDueToTime() {
+  uint32 timeToNextRange =
+      timeRanges.getTimeToNextRange(realTime.getComputedTime().sumSeconds);
+  Serial.printf("Time to next range: %u seconds | ", timeToNextRange);
+  realTime.printTime(timeToNextRange);
+
+  if (timeToNextRange > 20) return false;
+
+  uint8 time = timeToNextRange;
+  Serial.println("actionDueToTime\n");
+
+  Modal modal = {"", "Pump on after:", ""};
+  sprintf(display.modal.str2, "%us", time);
+  modal.timeShow = time;
+  display.showModal(modal);
+  realTime.getComputedTime();
+  
+  taskUpdateModalId = postponedTask.setInterval(1000, [time](uint8 id) mutable {
+    time--;  // 255
+    sprintf(display.modal.str2, "%us", time);
+    if (time > 0) return;
+
+    Serial.println("clear taskUpdateModalId");
+    postponedTask.clear(&id);
+    onTimeAction();
+  });
+
+  return true;
+}
+
 void stopActionByTime() {
   if (actionByTimeId == 0 && taskUpdateModalId == 0) return;
 

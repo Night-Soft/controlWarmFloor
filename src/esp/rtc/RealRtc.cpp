@@ -42,7 +42,7 @@ void RealRtc::init() {
   rtc.SetSquareWavePin(DS1307SquareWaveOut_Low);
   // delay(100);
 
-  if (needUpdateTime()) {
+  if (needUpdateTime()) {  
     setTimeFromNtp();
   }
   Serial.print("\nCurrent rtc time: ");
@@ -91,7 +91,7 @@ bool RealRtc::needUpdateTime() {
   Serial.println("\nRtcTime: ");
   printTime();
 
-  uint32 day = 3600 * 24;
+  uint32 day = 3600 * 24 * 3; // 259200
   return (lastNtpTime + day < curUnixRtc);
 }
 
@@ -111,6 +111,7 @@ void RealRtc::updateLastSetNtpTime(uint64 unix64time) {
 bool RealRtc::setTimeFromCompile() {
   RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
   rtc.SetDateTime(compiled);  // save in ds1307
+  updateComputedTime();
   printTime();
   return true;
 }
@@ -138,6 +139,13 @@ void RealRtc::updateComputedTime() {
   lastMillis = millis();
 }
 
+// print time as "D/M/Y | H:M:S", in current line
+void RealRtc::printTime(uint32 seconds) {
+  RtcDateTime dateTime = RtcDateTime(seconds);
+  printTime(&dateTime);
+}
+
+// print time as "D/M/Y | H:M:S", in current line
 void RealRtc::printTime(RtcDateTime *dt) {
   RtcDateTime dataTime = rtc.GetDateTime();
   if (dt == nullptr) dt = &dataTime;
@@ -170,26 +178,38 @@ bool RealRtc::setTimeFromNtp() {
 
   if (this->ntp == nullptr) delete ntp;
 
-  RtcDateTime dataTime = RtcDateTime();
-  dataTime.InitWithUnix32Time(ntpUnixTime);
+
   bool isSuccess = false;
   if (ntpUnixTime > compileUnixTime) {
-    rtc.SetDateTime(dataTime);  // save in ds1307
-    Serial.print("\nNtpTime set: ");
-    printTime(&dataTime);
-    updateLastSetNtpTime(ntpUnixTime);
-
+    Serial.println("SetTimeFromNtp: ");
+    uint64 time = (uint64)ntpUnixTime;
+    setTimeFromUnix(time);
     isSuccess = true;
   } else {
-    Serial.printf("\nError: setTimeFromNtp nNtpTime: %ld\n", ntpUnixTime);
-    Serial.print("\nNtpTime is: ");
-    printTime(&dataTime);
+      RtcDateTime dataTime = RtcDateTime();
+      dataTime.InitWithUnix32Time(ntpUnixTime);
+      Serial.printf("\nError: setTimeFromNtp nNtpTime: %ld\n", ntpUnixTime);
+      Serial.print("\nNtpTime is: ");
+      printTime(&dataTime);
   }
 
   Serial.print("currentRtcTime: ");
   this->printTime();
 
   return isSuccess;
+}
+
+bool RealRtc::setTimeFromUnix(uint64& time) {
+  RtcDateTime dataTime = RtcDateTime();
+  dataTime.InitWithUnix32Time(time);
+  rtc.SetDateTime(dataTime);  // save in ds1307
+  updateComputedTime();
+  updateLastSetNtpTime(time);
+
+  Serial.print("\n SetTimeFromUnix: ");
+  printTime(&dataTime);
+
+  return true;
 }
 
 void RealRtc::initNtpTime() {

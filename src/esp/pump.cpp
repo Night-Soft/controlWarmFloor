@@ -121,7 +121,7 @@ void Pump::tick() {
 
     if (millis() > this->endOfWorkTime) {
       Serial.printf("The pump worked for %u minutes\n",
-                    this->secondsAWhile * 60);
+                    this->secondsAWhile / 60);
       Serial.printf("The pump isWorking: %d\n", isWorking());
 
       this->canTick = false;

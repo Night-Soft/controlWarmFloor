@@ -59,7 +59,6 @@ void setup(void) {  // todo ready set pin, load fast 250ms, init time after load
  // delay(50);
   setupLink();
   realTime.init();
-  addTaskCheckCanSleep();
   postponedTask.setTimeout(10, []() { setupPins(); });  // setup last
   postponedTask.setTimeout(16, []() { display.drawNow(); });  // setup last
 
@@ -67,7 +66,9 @@ void setup(void) {  // todo ready set pin, load fast 250ms, init time after load
   postponedTask.setInterval(30000, [](uint8 id) { realTime.printTime(); });
   postponedTask.setInterval(1000, []() { pump.tick(); });
 
-//  Serial.printf("Esp load in: %lu\n", millis() - 7000);
+  if (!actionDueToTime()) addTaskManageSleep();
+
+  //  Serial.printf("Esp load in: %lu\n", millis() - 7000);
   Serial.printf("\n\n\n %10s \n\n\n", "Next loop");
 
   //delay(500);

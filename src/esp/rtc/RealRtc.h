@@ -7,9 +7,11 @@
 
 #include "NtpTime.h"
 
-struct CurrentTime {
+class CurrentTime {
+ public:
   uint32 sumSeconds;
   uint8 hour, minutes, seconds;
+
   static CurrentTime get(const RtcDateTime &rtcdateTime);
   static CurrentTime get(uint32 seconds);
 };
@@ -37,9 +39,11 @@ class RealRtc {
   CurrentTime getCurrentTime();
   CurrentTime getComputedTime();
   void updateComputedTime();
+  void printTime(uint32 seconds);
   void printTime(RtcDateTime *dateTime = nullptr);
 
   bool setTimeFromNtp();
+  bool setTimeFromUnix(uint64 &time);
   void initNtpTime();
   void deleteNtpTime();
 };

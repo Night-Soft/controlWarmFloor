@@ -16,7 +16,7 @@ bool NtpTime::init() {
   bool isConnected = wifiHolder->turnOn();
   if (isConnected == false) {
         Serial.println("NtpTime: No WiFi, call '.init later.'");
-        delete this->wifiHolder;
+       // delete this->wifiHolder;
         return false;
   }
 // todo auto offset

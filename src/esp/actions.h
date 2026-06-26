@@ -37,6 +37,7 @@ void onBtnMsg(MAIN_STATE & prev);
 void onTimeAction();
 void executeAction(NextAction action);
 
+bool actionDueToTime();
 void checkActionByTime(uint8 time);
 void stopActionByTime();
 

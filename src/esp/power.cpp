@@ -1,8 +1,12 @@
 #include "power.h"
+
 #include "TimeRange.h"
 
 bool canSleep() {
-  return pump.isWorking() == false && (WiFi.status() != WL_CONNECTED);
+  bool isAP = WiFi.getMode() == WIFI_AP;             // no sleep
+  bool isConnected = WiFi.status() == WL_CONNECTED;  // no sleep
+  bool isRelayOn = pump.isWorking();                 // no sleep
+  return !(isAP || isConnected || isRelayOn);
 }
 
 void showSleepLeftTime(uint32* timeSec) {
@@ -16,16 +20,16 @@ void showSleepLeftTime(uint32* timeSec) {
 }
 
 char sleepStr[40] = {0};
-uint8 taskTickId = 0, taskSleepNowId = 0, modalId = 0, deferrdeId = 0;
-void addSleepTick(uint32 timeSec = 0) {  // can run only postponed task
-  breakSleep();
+uint8 taskTickId = 0, taskSleepNowId = 0, modalId = 0, sleepCycleId = 0;
+void addShowSleepLeftTime(uint32 timeSec = 0) {  // can run only postponed task
+  resetManageCycleSleep();
 
   int count = 14;
   auto sleepTick = [count, timeSec](uint8 id) mutable {
     Serial.printf("sleepTick -> count: %d\n", count);
 
     if (!canSleep()) {
-      breakSleep();
+      resetManageCycleSleep();
       return;
     }
 
@@ -37,14 +41,13 @@ void addSleepTick(uint32 timeSec = 0) {  // can run only postponed task
       uint64_t us = timeSec * 1000 * 1000ull;
       Serial.printf("Sleep to: %llu\n", us);
       digitalWrite(P_ESP_STATE, HIGH);
-      ESP.deepSleep(us);
+      ESP.deepSleep(us); 
       Serial.println("This string should be not shown.");
 
       postponedTask.remove(id);
     }
   };
 
- // Modal modal = {"Deep sleep!"};
   Modal modal = {""};
 
   CurrentTime currentTime = realTime.getCurrentTime();
@@ -58,54 +61,51 @@ void addSleepTick(uint32 timeSec = 0) {  // can run only postponed task
 
   modalId = display.showModal(modal);
 
-  postponedTask.clear(&deferrdeId);
+  postponedTask.clear(&sleepCycleId);
   taskTickId = postponedTask.setInterval(1000, sleepTick);
 }
 
-// seconds to sleep
-void trySleep(uint32 timeSec) {
-  if (canSleep() == false) return;
-  Serial.printf("Time for slep: %u\n", timeSec);
-  addSleepTick(timeSec);
-}
-
-void breakSleep() {
+void resetManageCycleSleep() {
   if (taskTickId != 0) postponedTask.remove(taskTickId);
   if (taskSleepNowId != 0) postponedTask.remove(taskSleepNowId);
-  if(modalId != 0 && display.getModalId() == modalId) display.hideModal();
-  if(deferrdeId == 0) addTaskCheckCanSleep();
+  if (modalId != 0 && display.getModalId() == modalId) display.hideModal();
+  if (sleepCycleId == 0) addTaskManageSleep();
   taskTickId = 0;
   taskSleepNowId = 0;
   display.startUpdate();
 }
 
-void deferredCheckCanSleep() {
-  Serial.println("deferred Check Can Sleep");
+void manageSleepCycle() {
+  Serial.println("ManageSleepCycle");
 
-  if(!canSleep()) return;
+  if (!canSleep()) return;
 
-  uint32 secondsForSleep =
-      timeRanges.getTimeToNextRange(realTime.getCurrentTime().sumSeconds);
-  RtcDateTime timeSleep = RtcDateTime(secondsForSleep);
-  Serial.printf("Time for sleep: seconds: %u | ", secondsForSleep);
-  realTime.printTime(&timeSleep);
-
-  if (secondsForSleep < 20 && mainState.heating == STATE_HEATING::ON) {
-    postponedTask.clear(&deferrdeId); // next add in executeAction -> breakSleep
-    checkActionByTime(secondsForSleep);
+  if (actionDueToTime()) {
+    postponedTask.clear(&sleepCycleId);
   } else {
-    addSleepTick(secondsForSleep);    
+    uint32 secondsForSleep =
+        timeRanges.getTimeToNextRange(realTime.getComputedTime().sumSeconds);
+    Serial.printf("Time for sleep: seconds: %u | ", secondsForSleep);
+    realTime.printTime(secondsForSleep);
+    addShowSleepLeftTime(secondsForSleep);
   }
+
+  // if (secondsForSleep < 20 && mainState.heating == STATE_HEATING::ON) {
+  //   postponedTask.clear(&sleepCycleId); // next add in executeAction ->
+  //   resetManageCycleSleep checkActionByTime(secondsForSleep);
+  // } else {
+  //   addShowSleepLeftTime(secondsForSleep);
+  // }
 }
 
 void resetSleepTick() {
-  Serial.println("reset deferredCheckCanSleep");
+  Serial.println("reset manageSleepCycle");
 
-  breakSleep();
-  postponedTask.resetTick(deferrdeId);
+  resetManageCycleSleep();
+  postponedTask.resetTick(sleepCycleId);
 }
 
 // sleep tick should be fast then deferred time
-void addTaskCheckCanSleep() { 
-  deferrdeId = postponedTask.setInterval(10000, deferredCheckCanSleep);
+void addTaskManageSleep() {
+  sleepCycleId = postponedTask.setInterval(10000, manageSleepCycle);
 }

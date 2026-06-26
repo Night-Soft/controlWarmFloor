@@ -16,7 +16,7 @@ WiFiHolder::WiFiHolder() {
 
 WiFiHolder::~WiFiHolder() {
   WiFiHolder::counter--;
-  Serial.printf("Remove WiFiHolder: %d\n", WiFiHolder::counter);
+  Serial.printf("Remove WiFiHolder, left: %d\n", WiFiHolder::counter);
 
   if(WiFiHolder::counter == 0 ) {
     Serial.println("~WiFiHolder: try add turnOffWiFi for 5000");
@@ -53,7 +53,7 @@ bool connectToWiFi() {
     Serial.print(".");
     if (!isConnected && millis() - current > 15000) {
       isConnected = false;
-      Serial.printf("\nWifi failed status: %d", (int)(WiFi.status()));
+      Serial.printf("\nWifi failed status: %d\n", (int)(WiFi.status()));
       turnOffWiFi();
       break;
     }
